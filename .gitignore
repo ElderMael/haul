@@ -1,0 +1,9 @@
+.classpath/
+.classpath
+.exploded
+*.iml
+*.jar
+modules/
+.idea/
+.project
+*~
