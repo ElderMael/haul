@@ -70,10 +70,6 @@ shared void run() {
 
     tempCloneDir.mkdirs();
 
-    "Cannot write to directory ``tempCloneDirName``"
-    assert (tempCloneDir.canWrite());
-
-
     value gitCloneCommand = "git clone --depth 1 ``repo`` ``tempCloneDirName``";
 
     value exec = Runtime.runtime.exec(gitCloneCommand);
@@ -98,34 +94,54 @@ shared void run() {
 
     printAll(propertyFiles);
 
-    propertyFiles.each((File? file) {
+    value maps = propertyFiles.map<Map<Object,Object>?>((File? file) {
+
         assert (exists file);
+        assert (file.canRead());
 
         if (file.name.endsWith("yaml") ||file.name.endsWith("yml")) {
             value props = Yaml()
-                .loadAs(FileReader(file), classForType<Map<String,String>>());
+                .loadAs(FileReader(file), classForType<Map<Object,Object>>());
 
-            print(props);
+            return props;
         }
 
         if (file.name.endsWith("json")) {
             value builder = GsonBuilder().create();
 
             value props = builder
-                .fromJson(FileReader(file), classForType<Map<String,String>>());
+                .fromJson(FileReader(file), classForType<Map<Object,Object>>());
 
-            print(props);
+            return props;
         }
 
-        if (file.name.endsWith("properties") || file.name.endsWith("conf")) {
+        if (file.name.endsWith("properties") ||file.name.endsWith("conf")) {
             value props = Properties();
             props.load(FileReader(file));
 
-            print(props);
+            return props;
         }
 
+        return null;
 
-    });
+    }).coalesced;
+
+    if (cliOptions.has("to-consul-cli")) {
+        maps.each((map) {
+
+            map.entrySet().forEach((entry) {
+
+                value command = "consul kv put '``entry.key.string``' '``entry.\ivalue.string``'";
+
+                print("Running: ``command``");
+
+                Runtime
+                    .runtime
+                    .exec(command);
+            });
+
+        });
+    }
 
 }
 
@@ -139,6 +155,8 @@ OptionSet parseCommandLineArgs(String[] args) {
         .requiredUnless("version")
         .withRequiredArg()
         .ofType(classForType<JavaString>());
+
+    parser.accepts("to-consul-cli");
 
 
     value commandLineOptions = parser.parse(*args);

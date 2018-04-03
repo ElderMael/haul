@@ -6,7 +6,8 @@ set -ex
 
 ./ceylonb run io.eldermael.haul --version
 
-./ceylonb run io.eldermael.haul \
-          --repo https://github.com/ryanbreen/git2consul_data
+PATH="$PATH:$(pwd)" ./ceylonb run io.eldermael.haul \
+          --repo https://github.com/ryanbreen/git2consul_data \
+          --to-consul-cli
 
 
