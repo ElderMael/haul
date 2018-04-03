@@ -14,7 +14,8 @@ import java.net {
     URL
 }
 import java.io {
-    File
+    File,
+    FileReader
 }
 import java.util.concurrent {
     TimeUnit
@@ -22,9 +23,19 @@ import java.util.concurrent {
 import java.util.regex {
     Pattern
 }
+import org.yaml.snakeyaml {
+    Yaml
+}
+import java.util {
+    Map,
+    Properties
+}
+import com.google.gson {
+    GsonBuilder
+}
 
 Pattern fileExtensions = Pattern
-    .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json))$)");
+    .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json|conf))$)");
 
 suppressWarnings ("expressionTypeNothing")
 shared void run() {
@@ -87,6 +98,34 @@ shared void run() {
 
     printAll(propertyFiles);
 
+    propertyFiles.each((File? file) {
+        assert (exists file);
+
+        if (file.name.endsWith("yaml") ||file.name.endsWith("yml")) {
+            value props = Yaml()
+                .loadAs(FileReader(file), classForType<Map<String,String>>());
+
+            print(props);
+        }
+
+        if (file.name.endsWith("json")) {
+            value builder = GsonBuilder().create();
+
+            value props = builder
+                .fromJson(FileReader(file), classForType<Map<String,String>>());
+
+            print(props);
+        }
+
+        if (file.name.endsWith("properties") || file.name.endsWith("conf")) {
+            value props = Properties();
+            props.load(FileReader(file));
+
+            print(props);
+        }
+
+
+    });
 
 }
 
