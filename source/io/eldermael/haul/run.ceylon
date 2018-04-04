@@ -8,7 +8,8 @@ import java.lang {
     Types {
         classForType
     },
-    Runtime
+    Runtime,
+    System
 }
 import java.net {
     URL
@@ -48,9 +49,10 @@ shared void run() {
         printVersionAndExit();
     }
 
+    value tempDir = cliOptions.valueOf("temp-dir").string;
     value repositoryUrl = cliOptions.valueOf("repo").string;
 
-    value gitRepoDirectory = cloneGitRepo(repositoryUrl);
+    value gitRepoDirectory = cloneGitRepo(repositoryUrl, tempDir);
 
     value propertyFiles = searchConfigFilesInDirectory(gitRepoDirectory);
 
@@ -83,6 +85,10 @@ OptionSet parseCommandLineArgs(String[] args) {
 
     parser.accepts("to-consul-cli");
     parser.accepts("to-stdout");
+    parser.accepts("temp-dir")
+        .withRequiredArg()
+        .ofType(classForType<JavaString>())
+        .defaultsTo(JavaString(System.getProperty("java.io.tmpdir")));
 
     value commandLineOptions = parser.parse(*args);
 
@@ -96,15 +102,15 @@ void printVersionAndExit() {
     process.exit(0);
 }
 
-File cloneGitRepo(String repo) {
-    value repoPath = URL(repo).path;
+File cloneGitRepo(String repositoryUrl, String tempDir) {
+    value repoPath = URL(repositoryUrl).path;
     value indexAfterLastSlash = repoPath.lastIndexOf("/") + 1;
 
     value repoName = repoPath
         .substring(indexAfterLastSlash, repoPath.size)
         .replace(".git", "");
 
-    value tempCloneDirName = "/tmp/``repoName``";
+    value tempCloneDirName = "``tempDir``/``repoName``";
 
     value tempCloneDir = File(tempCloneDirName);
 
@@ -114,7 +120,7 @@ File cloneGitRepo(String repo) {
 
     tempCloneDir.mkdirs();
 
-    value gitCloneCommand = "git clone --depth 1 ``repo`` ``tempCloneDirName``";
+    value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
 
     value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
 
