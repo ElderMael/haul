@@ -1,6 +1,6 @@
 # haul
 
-[![Build Status](https://travis-ci.org/ElderMael/haul.svg?branch=master)](https://travis-ci.org/ElderMael/doombot)
+[![Build Status](https://travis-ci.org/ElderMael/haul.svg?branch=master)](https://travis-ci.org/ElderMael/haul)
 
 
 [![Ceylon](https://img.shields.io/badge/made%20with-ceylon%20%F0%9F%90%98-blue.svg?longCache=true&style=for-the-badge)](https://ceylon-lang.org/)
