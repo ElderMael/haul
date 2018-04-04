@@ -37,23 +37,61 @@ import com.google.gson {
 Pattern fileExtensions = Pattern
     .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json|conf))$)");
 
-suppressWarnings ("expressionTypeNothing")
+
 shared void run() {
 
     value cliOptions = parseCommandLineArgs(process.arguments);
 
-    if (cliOptions.has("version")) {
+    value shouldPrintVersionAndExit = cliOptions.has("version");
 
-        value version = `module io.eldermael.haul`.version;
-
-        print("haul version ``version``");
-        process.exit(0);
+    if (shouldPrintVersionAndExit) {
+        printVersionAndExit();
     }
 
-    value repo = cliOptions.valueOf("repo").string;
+    value repositoryUrl = cliOptions.valueOf("repo").string;
 
+    value gitRepoDirectory = cloneGitRepo(repositoryUrl);
+
+    value propertyFiles = searchConfigFilesInDirectory(gitRepoDirectory);
+
+    value propertiesPerFile = loadKeyAndValuesFromFiles(propertyFiles);
+
+    value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
+
+    if (shouldDumpToConsulCli) {
+        dumpPropertiesToConsulCli(propertiesPerFile);
+    }
+
+}
+
+OptionSet parseCommandLineArgs(String[] args) {
+
+    value parser = OptionParser();
+
+    parser.accepts("version");
+
+    parser.accepts("repo")
+        .requiredUnless("version")
+        .withRequiredArg()
+        .ofType(classForType<JavaString>());
+
+    parser.accepts("to-consul-cli");
+
+
+    value commandLineOptions = parser.parse(*args);
+
+    return commandLineOptions;
+}
+
+suppressWarnings ("expressionTypeNothing")
+void printVersionAndExit() {
+    value version = `module io.eldermael.haul`.version;
+    print("haul version ``version``");
+    process.exit(0);
+}
+
+File cloneGitRepo(String repo) {
     value repoPath = URL(repo).path;
-
     value indexAfterLastSlash = repoPath.lastIndexOf("/") + 1;
 
     value repoName = repoPath
@@ -72,31 +110,37 @@ shared void run() {
 
     value gitCloneCommand = "git clone --depth 1 ``repo`` ``tempCloneDirName``";
 
-    value exec = Runtime.runtime.exec(gitCloneCommand);
+    value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
 
-    exec.waitFor(10, TimeUnit.minutes);
+    cloningProcess.waitFor(10, TimeUnit.minutes);
 
-    value propertyFiles = tempCloneDir
+    return tempCloneDir;
+}
+
+{File*} searchConfigFilesInDirectory(File gitRepoDirectory) {
+    value propertyFiles = gitRepoDirectory
         .listFiles()
         .iterable
         .filter((File? file) {
-        assert (exists file);
+            assert (exists file);
 
-        value isFile = file.file;
+            value isFile = file.file;
 
-        value hasProperExtension = fileExtensions
-            .matcher(file.name)
-            .matches();
+            value hasProperExtension = fileExtensions
+                .matcher(file.name)
+                .matches();
 
-        return isFile
-        && hasProperExtension;
-    });
+            return isFile && hasProperExtension;
+        }).coalesced;
 
-    printAll(propertyFiles);
+    return propertyFiles;
+}
 
-    value maps = propertyFiles.map<Map<Object,Object>?>((File? file) {
+{Map<Object,Object>*} loadKeyAndValuesFromFiles({File*} propertyFiles) {
 
-        assert (exists file);
+    value propertiesPerFile = propertyFiles.map<Map<Object,Object>?>((File file) {
+
+        "Cannot read file ``file.absolutePath``"
         assert (file.canRead());
 
         if (file.name.endsWith("yaml") ||file.name.endsWith("yml")) {
@@ -126,40 +170,22 @@ shared void run() {
 
     }).coalesced;
 
-    if (cliOptions.has("to-consul-cli")) {
-        maps.each((map) {
-
-            map.entrySet().forEach((entry) {
-
-                value command = "consul kv put '``entry.key.string``' '``entry.\ivalue.string``'";
-
-                print("Running: ``command``");
-
-                Runtime
-                    .runtime
-                    .exec(command);
-            });
-
-        });
-    }
-
+    return propertiesPerFile;
 }
 
-OptionSet parseCommandLineArgs(String[] args) {
+void dumpPropertiesToConsulCli({Map<Object,Object>*} propertiesPerFile) {
+    propertiesPerFile.each((map) {
 
-    value parser = OptionParser();
+        map.entrySet().forEach((entry) {
 
-    parser.accepts("version");
+            value command = "consul kv put '``entry.key.string``' '``entry.\ivalue.string``'";
 
-    parser.accepts("repo")
-        .requiredUnless("version")
-        .withRequiredArg()
-        .ofType(classForType<JavaString>());
+            print("Running: ``command``");
 
-    parser.accepts("to-consul-cli");
+            Runtime
+                .runtime
+                .exec(command);
+        });
 
-
-    value commandLineOptions = parser.parse(*args);
-
-    return commandLineOptions;
+    });
 }
