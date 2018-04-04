@@ -118,7 +118,10 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
         tempCloneDir.delete();
     }
 
-    tempCloneDir.mkdirs();
+    value dirsCreated = tempCloneDir.mkdirs();
+
+    "Cannot create directory '``tempCloneDirName``'"
+    assert (dirsCreated);
 
     value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
 
