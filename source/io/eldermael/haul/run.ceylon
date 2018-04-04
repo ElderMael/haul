@@ -59,7 +59,13 @@ shared void run() {
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
 
     if (shouldDumpToConsulCli) {
-        dumpPropertiesToConsulCli(propertiesPerFile);
+        dumpProperties(propertiesPerFile, executeConsulKeyAndValueCommand);
+    }
+
+    value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
+
+    if (shouldDumpToStandardOutput) {
+        dumpProperties(propertiesPerFile, printToStandardOutput);
     }
 
 }
@@ -76,7 +82,7 @@ OptionSet parseCommandLineArgs(String[] args) {
         .ofType(classForType<JavaString>());
 
     parser.accepts("to-consul-cli");
-
+    parser.accepts("to-stdout");
 
     value commandLineOptions = parser.parse(*args);
 
@@ -122,16 +128,16 @@ File cloneGitRepo(String repo) {
         .listFiles()
         .iterable
         .filter((File? file) {
-            assert (exists file);
+        assert (exists file);
 
-            value isFile = file.file;
+        value isFile = file.file;
 
-            value hasProperExtension = fileExtensions
-                .matcher(file.name)
-                .matches();
+        value hasProperExtension = fileExtensions
+            .matcher(file.name)
+            .matches();
 
-            return isFile && hasProperExtension;
-        }).coalesced;
+        return isFile && hasProperExtension;
+    }).coalesced;
 
     return propertyFiles;
 }
@@ -173,19 +179,29 @@ File cloneGitRepo(String repo) {
     return propertiesPerFile;
 }
 
-void dumpPropertiesToConsulCli({Map<Object,Object>*} propertiesPerFile) {
+void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, String) consumer) {
     propertiesPerFile.each((map) {
 
         map.entrySet().forEach((entry) {
 
-            value command = "consul kv put '``entry.key.string``' '``entry.\ivalue.string``'";
+            value key = entry.key.string;
+            value val = entry.\ivalue.string;
 
-            print("Running: ``command``");
+            consumer(key, val);
 
-            Runtime
-                .runtime
-                .exec(command);
         });
 
     });
+}
+
+void executeConsulKeyAndValueCommand(String key, String val) {
+    value command = "consul kv put '``key``' '``val``'";
+
+    Runtime
+        .runtime
+        .exec(command).waitFor();
+}
+
+void printToStandardOutput(String key, String val) {
+    print("``key``=``val``");
 }

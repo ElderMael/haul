@@ -8,6 +8,7 @@ set -ex
 
 PATH="$PATH:$(pwd)" ./ceylonb run io.eldermael.haul \
           --repo https://github.com/ryanbreen/git2consul_data \
-          --to-consul-cli
+          --to-consul-cli \
+          --to-stdout
 
 
