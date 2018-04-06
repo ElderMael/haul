@@ -12,4 +12,4 @@ PATH="$PATH:$(pwd)" ./ceylonb run io.eldermael.haul \
           --to-etcd-cli \
           --to-stdout
 
-
+./ceylonb assemble --include-language --out haul.jar io.eldermael.haul
