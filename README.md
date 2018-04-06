@@ -7,6 +7,15 @@
 
 Dump key-value files to different backends.
 
+```$bash
+
+haul --repo https://github.com/ElderMael/data \
+               --to-consul-cli \
+               --to-etcd-cli \
+               --to-stdout
+
+```
+
 ---
 
 [![forthebadge](http://forthebadge.com/images/badges/built-with-resentment.svg)](http://forthebadge.com)
