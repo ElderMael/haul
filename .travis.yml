@@ -7,4 +7,5 @@ addons:
       - oracle-java9-installer
 
 script:
+  - jdk_switcher use oraclejdk9
   - sh build.sh
