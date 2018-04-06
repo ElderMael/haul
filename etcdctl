@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "Setting consul key ${2} to value ${3}"

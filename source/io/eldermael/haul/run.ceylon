@@ -61,7 +61,13 @@ shared void run() {
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
 
     if (shouldDumpToConsulCli) {
-        dumpProperties(propertiesPerFile, executeConsulKeyAndValueCommand);
+        dumpProperties(propertiesPerFile, executeDumpCommand("consul kv put '%s' '%s'"));
+    }
+
+    value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
+
+    if (shouldDumpToEtcdCtl) {
+        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl put '%s' '%s'"));
     }
 
     value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
@@ -84,7 +90,10 @@ OptionSet parseCommandLineArgs(String[] args) {
         .ofType(classForType<JavaString>());
 
     parser.accepts("to-consul-cli");
+    parser.accepts("to-etcd-cli");
+
     parser.accepts("to-stdout");
+
     parser.accepts("temp-dir")
         .withRequiredArg()
         .ofType(classForType<JavaString>())
@@ -203,12 +212,12 @@ void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, St
     });
 }
 
-void executeConsulKeyAndValueCommand(String key, String val) {
-    value command = "consul kv put '``key``' '``val``'";
+Integer executeDumpCommand(String command)(String key, String val) {
 
-    Runtime
-        .runtime
-        .exec(command).waitFor();
+    value cliCommand = JavaString.format(command, key, val);
+
+    return Runtime.runtime.exec(cliCommand).waitFor();
+
 }
 
 void printToStandardOutput(String key, String val) {
