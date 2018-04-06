@@ -58,23 +58,7 @@ shared void run() {
 
     value propertiesPerFile = loadKeyAndValuesFromFiles(propertyFiles);
 
-    value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
-
-    if (shouldDumpToConsulCli) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("consul kv put '%s' '%s'"));
-    }
-
-    value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
-
-    if (shouldDumpToEtcdCtl) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl put '%s' '%s'"));
-    }
-
-    value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
-
-    if (shouldDumpToStandardOutput) {
-        dumpProperties(propertiesPerFile, printToStandardOutput);
-    }
+    dumpToBackends(cliOptions, propertiesPerFile);
 
 }
 
@@ -197,10 +181,25 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
     return propertiesPerFile;
 }
 
-void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, String) consumer) {
-    propertiesPerFile.each((map) {
+void dumpToBackends(OptionSet cliOptions, {Map<Object,Object>*} propertiesPerFile) {
+    value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
+    if (shouldDumpToConsulCli) {
+        dumpProperties(propertiesPerFile, executeDumpCommand("consul kv put '%s' '%s'"));
+    }
+    value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
+    if (shouldDumpToEtcdCtl) {
+        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl put '%s' '%s'"));
+    }
+    value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
+    if (shouldDumpToStandardOutput) {
+        dumpProperties(propertiesPerFile, printToStandardOutput);
+    }
+}
 
-        map.entrySet().forEach((entry) {
+void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, String) consumer) {
+    propertiesPerFile.each((propertiesInFile) {
+
+        propertiesInFile.entrySet().forEach((entry) {
 
             value key = entry.key.string;
             value val = entry.\ivalue.string;
