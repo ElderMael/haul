@@ -7,7 +7,7 @@
 
 Dump key-value files to different backends.
 
-```bash
+```shell
 
 haul --repo https://github.com/ElderMael/data \
                --to-consul-cli \
