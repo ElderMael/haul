@@ -39,6 +39,7 @@ Pattern fileExtensions = Pattern
     .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json|conf))$)");
 
 
+
 shared void run() {
 
     value cliOptions = parseCommandLineArgs(process.arguments);

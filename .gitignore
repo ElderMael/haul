@@ -8,3 +8,4 @@ modules/
 .project
 *~
 *.cas
+.settings/
