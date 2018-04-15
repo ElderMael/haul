@@ -4,7 +4,7 @@ import joptsimple {
 }
 import java.lang {
     JavaString=String,
-
+    ProcessBuilder,
     Types {
         classForType
     },
@@ -211,9 +211,13 @@ void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, St
 
 Integer executeDumpCommand(String command)(String key, String val) {
 
-    value cliCommand = JavaString.format(command, key, val);
+    value cliCommand = JavaString.format(command, key, val).split();
 
-    return Runtime.runtime.exec(cliCommand).waitFor();
+    value processBuilder = ProcessBuilder(*cliCommand);
+
+    processBuilder.inheritIO();
+
+    return processBuilder.start().waitFor();
 
 }
 
