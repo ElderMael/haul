@@ -31,13 +31,15 @@ import java.util {
     Map,
     Properties
 }
-import com.google.gson {
-    GsonBuilder
+import com.fasterxml.jackson.core.type {
+    TypeReference
+}
+import com.fasterxml.jackson.databind {
+    ObjectMapper
 }
 
 Pattern fileExtensions = Pattern
     .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json|conf))$)");
-
 
 
 shared void run() {
@@ -152,7 +154,7 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
         "Cannot read file ``file.absolutePath``"
         assert (file.canRead());
 
-        if (file.name.endsWith("yaml") ||file.name.endsWith("yml")) {
+        if (file.name.endsWith("yaml") || file.name.endsWith("yml")) {
             value props = Yaml()
                 .loadAs(FileReader(file), classForType<Map<Object,Object>>());
 
@@ -160,12 +162,7 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
         }
 
         if (file.name.endsWith("json")) {
-            value builder = GsonBuilder().create();
-
-            value props = builder
-                .fromJson(FileReader(file), classForType<Map<Object,Object>>());
-
-            return props;
+            return ObjectMapper().readValue<Map<Object, Object>>(file, MapType());
         }
 
         if (file.name.endsWith("properties") ||file.name.endsWith("conf")) {
@@ -223,3 +220,5 @@ Integer executeDumpCommand(String command)(String key, String val) {
 void printToStandardOutput(String key, String val) {
     print("``key``=``val``");
 }
+
+class MapType() extends TypeReference<Map<String,Object>>() {}
