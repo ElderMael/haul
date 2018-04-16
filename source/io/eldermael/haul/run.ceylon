@@ -182,11 +182,11 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
 void dumpToBackends(OptionSet cliOptions, {Map<Object,Object>*} propertiesPerFile) {
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
     if (shouldDumpToConsulCli) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("consul kv put '%s' '%s'"));
+        dumpProperties(propertiesPerFile, executeDumpCommand("consul", "kv", "put", "%k", "%v"));
     }
     value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
     if (shouldDumpToEtcdCtl) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl put '%s' '%s'"));
+        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl", "put", "%k", "%v"));
     }
     value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
     if (shouldDumpToStandardOutput) {
@@ -209,11 +209,22 @@ void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, St
     });
 }
 
-Integer executeDumpCommand(String command)(String key, String val) {
+Integer executeDumpCommand(String* command)(String key, String val) {
 
-    value cliCommand = JavaString.format(command, key, val).split();
+    value commandWithArgs = command.map((part){
 
-    value processBuilder = ProcessBuilder(*cliCommand);
+        if(part == "%k") {
+            return key;
+        }
+
+        if(part == "%v") {
+            return val;
+        }
+
+        return part;
+    });
+
+    value processBuilder = ProcessBuilder(*commandWithArgs);
 
     processBuilder.inheritIO();
 
