@@ -41,6 +41,7 @@ import com.fasterxml.jackson.databind {
 Pattern fileExtensions = Pattern
     .compile("([^\\s]+(\\.(?i)(ya?ml|properties|json|conf))$)");
 
+variable Boolean verbose = false;
 
 shared void run() {
 
@@ -187,31 +188,28 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
 
 void dumpToBackends(OptionSet cliOptions, {[File, Map<Object,Object>]*} propertiesPerFile) {
 
-    value verbose = cliOptions.has("verbose");
+    verbose = cliOptions.has("verbose");
 
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
     if (shouldDumpToConsulCli) {
         dumpProperties(propertiesPerFile,
-            executeDumpCommand("consul", "kv", "put", "%k", "%v"),
-            verbose);
+            executeDumpCommand("consul", "kv", "put", "%k", "%v"));
     }
 
     value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
     if (shouldDumpToEtcdCtl) {
         dumpProperties(propertiesPerFile,
-            executeDumpCommand("etcdctl", "put", "%k", "%v"),
-            verbose);
+            executeDumpCommand("etcdctl", "put", "%k", "%v"));
     }
 
     value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
     if (shouldDumpToStandardOutput) {
-        dumpProperties(propertiesPerFile, printToStandardOutput, verbose);
+        dumpProperties(propertiesPerFile, printToStandardOutput);
     }
 }
 
 void dumpProperties({[File, Map<Object,Object>]*} propertiesPerFile,
-        Anything(String, String) consumer,
-        Boolean verbose = false) {
+        Anything(String, String) consumer) {
 
     propertiesPerFile.each((propertiesInFile) {
 
@@ -249,8 +247,13 @@ Integer executeDumpCommand(String* command)(String key, String val) {
         return part;
     });
 
-    return ProcessBuilder(*commandWithArgs)
-        .inheritIO()
+    value processBuilder = ProcessBuilder(*commandWithArgs);
+
+    if(verbose) {
+        processBuilder.inheritIO();
+    }
+
+    return processBuilder
         .start()
         .waitFor();
 
