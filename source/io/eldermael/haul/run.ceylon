@@ -59,7 +59,9 @@ shared void run() {
 
     value propertyFiles = searchConfigFilesInDirectory(gitRepoDirectory);
 
-    value propertiesPerFile = loadKeyAndValuesFromFiles(propertyFiles);
+    {[File, Map<Object,Object>]*} propertiesPerFile =
+            loadKeyAndValuesFromFiles(propertyFiles)
+            .coalesced;
 
     dumpToBackends(cliOptions, propertiesPerFile);
 
@@ -85,6 +87,8 @@ OptionSet parseCommandLineArgs(String[] args) {
         .withRequiredArg()
         .ofType(classForType<JavaString>())
         .defaultsTo(JavaString(System.getProperty("java.io.tmpdir")));
+
+    parser.accepts("verbose");
 
     value commandLineOptions = parser.parse(*args);
 
@@ -133,23 +137,23 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
         .listFiles()
         .iterable
         .filter((File? file) {
-        assert (exists file);
+            assert (exists file);
 
-        value isFile = file.file;
+            value isFile = file.file;
 
-        value hasProperExtension = fileExtensions
-            .matcher(file.name)
-            .matches();
+            value hasProperExtension = fileExtensions
+                .matcher(file.name)
+                .matches();
 
-        return isFile && hasProperExtension;
-    }).coalesced;
+            return isFile && hasProperExtension;
+        }).coalesced;
 
     return propertyFiles;
 }
 
-{Map<Object,Object>*} loadKeyAndValuesFromFiles({File*} propertyFiles) {
+{ [ File, Map<Object,Object> ]?* } loadKeyAndValuesFromFiles({File*} propertyFiles) {
 
-    value propertiesPerFile = propertyFiles.map<Map<Object,Object>?>((File file) {
+    value propertiesPerFile = propertyFiles.map<[ File, Map<Object,Object> ]?>((File file) {
 
         "Cannot read file ``file.absolutePath``"
         assert (file.canRead());
@@ -158,18 +162,20 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
             value props = Yaml()
                 .loadAs(FileReader(file), classForType<Map<Object,Object>>());
 
-            return props;
+            return [ file, props ];
         }
 
         if (file.name.endsWith("json")) {
-            return ObjectMapper().readValue<Map<Object, Object>>(file, MapType());
+            value props = ObjectMapper()
+                .readValue<Map<Object, Object>>(file, MapType());
+            return [ file, props ];
         }
 
-        if (file.name.endsWith("properties") ||file.name.endsWith("conf")) {
+        if (file.name.endsWith("properties") || file.name.endsWith("conf")) {
             value props = Properties();
             props.load(FileReader(file));
 
-            return props;
+            return [ file, props ];
         }
 
         return null;
@@ -179,25 +185,44 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
     return propertiesPerFile;
 }
 
-void dumpToBackends(OptionSet cliOptions, {Map<Object,Object>*} propertiesPerFile) {
+void dumpToBackends(OptionSet cliOptions, {[File, Map<Object,Object>]*} propertiesPerFile) {
+
+    value verbose = cliOptions.has("verbose");
+
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
     if (shouldDumpToConsulCli) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("consul", "kv", "put", "%k", "%v"));
+        dumpProperties(propertiesPerFile,
+            executeDumpCommand("consul", "kv", "put", "%k", "%v"),
+            verbose);
     }
+
     value shouldDumpToEtcdCtl = cliOptions.has("to-etcd-cli");
     if (shouldDumpToEtcdCtl) {
-        dumpProperties(propertiesPerFile, executeDumpCommand("etcdctl", "put", "%k", "%v"));
+        dumpProperties(propertiesPerFile,
+            executeDumpCommand("etcdctl", "put", "%k", "%v"),
+            verbose);
     }
+
     value shouldDumpToStandardOutput = cliOptions.has("to-stdout");
     if (shouldDumpToStandardOutput) {
-        dumpProperties(propertiesPerFile, printToStandardOutput);
+        dumpProperties(propertiesPerFile, printToStandardOutput, verbose);
     }
 }
 
-void dumpProperties({Map<Object,Object>*} propertiesPerFile, Anything(String, String) consumer) {
+void dumpProperties({[File, Map<Object,Object>]*} propertiesPerFile,
+        Anything(String, String) consumer,
+        Boolean verbose = false) {
+
     propertiesPerFile.each((propertiesInFile) {
 
-        propertiesInFile.entrySet().forEach((entry) {
+        value [file, properties] = propertiesInFile;
+
+        if(verbose) {
+            print("Dumping file: '``file.absolutePath``'");
+        }
+
+
+        properties.entrySet().forEach((entry) {
 
             value key = entry.key.string;
             value val = entry.\ivalue.string;
@@ -224,11 +249,10 @@ Integer executeDumpCommand(String* command)(String key, String val) {
         return part;
     });
 
-    value processBuilder = ProcessBuilder(*commandWithArgs);
-
-    processBuilder.inheritIO();
-
-    return processBuilder.start().waitFor();
+    return ProcessBuilder(*commandWithArgs)
+        .inheritIO()
+        .start()
+        .waitFor();
 
 }
 
