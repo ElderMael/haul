@@ -139,7 +139,7 @@ File cloneOrUpdateGitRepo(String repositoryUrl, String tempDir) {
     assert (tempCloneDir.\iexists());
 
     cloneRepo(repositoryUrl, tempCloneDirName);
-    
+
     return tempCloneDir;
 }
 
