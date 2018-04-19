@@ -58,7 +58,7 @@ shared void run() {
     value tempDir = cliOptions.valueOf("temp-dir").string;
     value repositoryUrl = cliOptions.valueOf("repo").string;
 
-    value gitRepoDirectory = cloneGitRepo(repositoryUrl, tempDir);
+    value gitRepoDirectory = cloneOrUpdateGitRepo(repositoryUrl, tempDir);
 
     value propertyFiles = searchConfigFilesInDirectory(gitRepoDirectory);
 
@@ -105,7 +105,7 @@ void printVersionAndExit() {
     process.exit(0);
 }
 
-File cloneGitRepo(String repositoryUrl, String tempDir) {
+File cloneOrUpdateGitRepo(String repositoryUrl, String tempDir) {
     value repoPath = URL(repositoryUrl).path;
     value indexAfterLastSlash = repoPath.lastIndexOf("/") + 1;
 
@@ -123,46 +123,50 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
             print("Fetching latest changes from repository ``repositoryUrl``");
         }
 
-        value fetchProcess = ProcessBuilder("git", "fetch", "origin")
-            .directory(tempCloneDir);
+        fetchChangesAndResetBranch(tempCloneDir);
 
-        if (verbose) {
-            fetchProcess.inheritIO();
-        }
-
-        fetchProcess.start().waitFor();
-
-        value resetProcess = ProcessBuilder("git", "reset", "--hard", "origin/master")
-            .directory(tempCloneDir);
-
-        if(verbose) {
-            resetProcess.inheritIO();
-        }
-
-        fetchProcess.start().waitFor();
-
-    } else {
-
-        if(verbose) {
-            print("Cloning new repo '``repositoryUrl``' at ``tempCloneDirName``");
-        }
-
-        tempCloneDir.mkdirs();
-
-        "Cannot create directory '``tempCloneDirName``'"
-        assert (tempCloneDir.\iexists());
-
-        value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
-
-        value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
-
-        cloningProcess.waitFor(10, TimeUnit.minutes);
+        return tempCloneDir;
 
     }
 
+    if(verbose) {
+        print("Cloning new repo '``repositoryUrl``' at ``tempCloneDirName``");
+    }
 
+    tempCloneDir.mkdirs();
 
+    "Cannot create directory '``tempCloneDirName``'"
+    assert (tempCloneDir.\iexists());
+
+    cloneRepo(repositoryUrl, tempCloneDirName);
+    
     return tempCloneDir;
+}
+
+Boolean cloneRepo(String repositoryUrl, String tempCloneDirName) {
+    value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
+    value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
+    return cloningProcess.waitFor(10, TimeUnit.minutes);
+}
+
+Boolean fetchChangesAndResetBranch(File tempCloneDir) {
+    value fetchProcess = ProcessBuilder("git", "fetch", "origin")
+        .directory(tempCloneDir);
+
+    if (verbose) {
+        fetchProcess.inheritIO();
+    }
+
+    fetchProcess.start().waitFor();
+
+    value resetProcess = ProcessBuilder("git", "reset", "--hard", "origin/master")
+        .directory(tempCloneDir);
+
+    if(verbose) {
+        resetProcess.inheritIO();
+    }
+
+    return fetchProcess.start().waitFor( 10 , TimeUnit.minutes);
 }
 
 {File*} searchConfigFilesInDirectory(File gitRepoDirectory) {
