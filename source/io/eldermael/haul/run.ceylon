@@ -47,6 +47,8 @@ shared void run() {
 
     value cliOptions = parseCommandLineArgs(process.arguments);
 
+    verbose = cliOptions.has("verbose");
+
     value shouldPrintVersionAndExit = cliOptions.has("version");
 
     if (shouldPrintVersionAndExit) {
@@ -116,19 +118,49 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
     value tempCloneDir = File(tempCloneDirName);
 
     if (tempCloneDir.\iexists()) {
-        tempCloneDir.delete();
+
+        if(verbose) {
+            print("Fetching latest changes from repository ``repositoryUrl``");
+        }
+
+        value fetchProcess = ProcessBuilder("git", "fetch", "origin")
+            .directory(tempCloneDir);
+
+        if (verbose) {
+            fetchProcess.inheritIO();
+        }
+
+        fetchProcess.start().waitFor();
+
+        value resetProcess = ProcessBuilder("git", "reset", "--hard", "origin/master")
+            .directory(tempCloneDir);
+
+        if(verbose) {
+            resetProcess.inheritIO();
+        }
+
+        fetchProcess.start().waitFor();
+
+    } else {
+
+        if(verbose) {
+            print("Cloning new repo '``repositoryUrl``' at ``tempCloneDirName``");
+        }
+
+        tempCloneDir.mkdirs();
+
+        "Cannot create directory '``tempCloneDirName``'"
+        assert (tempCloneDir.\iexists());
+
+        value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
+
+        value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
+
+        cloningProcess.waitFor(10, TimeUnit.minutes);
+
     }
 
-    tempCloneDir.mkdirs();
 
-    "Cannot create directory '``tempCloneDirName``'"
-    assert (tempCloneDir.\iexists());
-
-    value gitCloneCommand = "git clone --depth 1 ``repositoryUrl`` ``tempCloneDirName``";
-
-    value cloningProcess = Runtime.runtime.exec(gitCloneCommand);
-
-    cloningProcess.waitFor(10, TimeUnit.minutes);
 
     return tempCloneDir;
 }
@@ -187,8 +219,6 @@ File cloneGitRepo(String repositoryUrl, String tempDir) {
 }
 
 void dumpToBackends(OptionSet cliOptions, {[File, Map<Object,Object>]*} propertiesPerFile) {
-
-    verbose = cliOptions.has("verbose");
 
     value shouldDumpToConsulCli = cliOptions.has("to-consul-cli");
     if (shouldDumpToConsulCli) {
